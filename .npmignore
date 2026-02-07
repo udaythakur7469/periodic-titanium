@@ -1,0 +1,40 @@
+# Source files (only ship compiled dist/)
+src/
+tsconfig.json
+
+# Tests
+*.test.ts
+*.spec.ts
+__tests__/
+coverage/
+
+# Config files
+.eslintrc.js
+.prettierrc
+jest.config.js
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+PROJECT_STRUCTURE.md
+SETUP.md
