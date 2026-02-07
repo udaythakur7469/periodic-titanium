@@ -599,8 +599,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📞 Support
 
-- 🐛 **Issues:** [GitHub Issues](https://github.com/thaku7469/periodic-titanium/issues)
-- 💬 **Discussions:** [GitHub Discussions](https://github.com/thaku7469/periodic-titanium/discussions)
+- 🐛 **Issues:** [GitHub Issues](https://github.com/udaythakur7469/periodic-titanium/issues)
+- 💬 **Discussions:** [GitHub Discussions](https://github.com/udaythakur7469/periodic-titanium/discussions)
 - 📧 **Email:** udaythakurwork@gmail.com
 
 ---

@@ -34,4 +34,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Potential for burst traffic at window boundaries
 - No built-in distributed tracing or metrics (integrate with your APM)
 
-[1.0.0]: https://github.com/thaku7469/periodic-titanium/releases/tag/v1.0.0
+[1.0.0]: https://github.com/udaythakur7469/periodic-titanium/releases/tag/v1.0.0

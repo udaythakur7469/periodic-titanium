@@ -18,7 +18,7 @@ Be respectful, constructive, and professional in all interactions.
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/thaku7469/periodic-titanium.git
+   git clone https://github.com/udaythakur7469/periodic-titanium.git
    cd periodic-titanium
    ```
 

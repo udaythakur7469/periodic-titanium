@@ -28,12 +28,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thaku7469/periodic-titanium.git"
+    "url": "https://github.com/udaythakur7469/periodic-titanium.git"
   },
   "bugs": {
-    "url": "https://github.com/thaku7469/periodic-titanium/issues"
+    "url": "https://github.com/udaythakur7469/periodic-titanium/issues"
   },
-  "homepage": "https://github.com/thaku7469/periodic-titanium#readme",
+  "homepage": "https://github.com/udaythakur7469/periodic-titanium#readme",
   "publishConfig": {
     "access": "public"
   },

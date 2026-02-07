@@ -334,7 +334,7 @@ app.use((req, res, next) => {
 
 ## 🔗 Resources
 
-- **GitHub:** https://github.com/thaku7469/periodic-titanium
+- **GitHub:** https://github.com/udaythakur7469/periodic-titanium
 - **npm:** https://www.npmjs.com/package/@periodic/titanium
 - **Issues:** Report bugs and request features
 
