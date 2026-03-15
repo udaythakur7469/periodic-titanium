@@ -8,10 +8,10 @@
  */
 
 // Export Express middleware
-export { rateLimit, createRateLimiter } from "./adapters/express";
+export { rateLimit, createRateLimiter } from './adapters/express';
 
 // Export core components for advanced usage
-export { RateLimiter } from "./core/limiter";
+export { RateLimiter } from './core/limiter';
 
 // Export all types
 export type {
@@ -22,7 +22,7 @@ export type {
   RateLimiterConfig,
   ExpressRateLimitOptions,
   RateLimitInfo,
-} from "./core/types";
+} from './core/types';
 
 // Export utilities
-export { extractClientIp, normalizeIp, getDefaultIdentifier } from "./utils/ip";
+export { extractClientIp, normalizeIp, getDefaultIdentifier } from './utils/ip';

@@ -1,4 +1,4 @@
-import { Request } from "express";
+import { Request } from 'express';
 
 /**
  * Extract client IP address from Express request
@@ -16,18 +16,18 @@ import { Request } from "express";
 export function extractClientIp(req: Request): string {
   // X-Forwarded-For can contain multiple IPs (client, proxy1, proxy2)
   // We want the first one (the original client)
-  const forwardedFor = req.headers["x-forwarded-for"];
+  const forwardedFor = req.headers['x-forwarded-for'];
   if (forwardedFor) {
     const ips = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
-    const firstIp = ips.split(",")[0].trim();
+    const firstIp = ips.split(',')[0].trim();
     if (firstIp) {
       return firstIp;
     }
   }
 
   // X-Real-IP is set by some proxies (nginx)
-  const realIp = req.headers["x-real-ip"];
-  if (realIp && typeof realIp === "string") {
+  const realIp = req.headers['x-real-ip'];
+  if (realIp && typeof realIp === 'string') {
     return realIp.trim();
   }
 
@@ -38,7 +38,7 @@ export function extractClientIp(req: Request): string {
   }
 
   // Fallback
-  return "unknown";
+  return 'unknown';
 }
 
 /**
@@ -51,7 +51,7 @@ export function extractClientIp(req: Request): string {
 export function normalizeIp(ip: string): string {
   // Convert IPv6-mapped IPv4 address to IPv4
   // ::ffff:192.168.1.1 -> 192.168.1.1
-  if (ip.startsWith("::ffff:")) {
+  if (ip.startsWith('::ffff:')) {
     return ip.substring(7);
   }
 

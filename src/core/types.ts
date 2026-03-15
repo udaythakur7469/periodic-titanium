@@ -1,18 +1,18 @@
-import { RedisClientType } from "redis";
-import { Request } from "express";
+import Redis from 'ioredis';
+import { Request } from 'express';
 
 /**
  * Rate limiting algorithm types
  * Currently only fixed-window is implemented
  */
-export type Algorithm = "fixed-window";
+export type Algorithm = 'fixed-window';
 
 /**
  * Strategy for handling failures when Redis is unavailable
  * - 'open': Allow requests through (recommended for availability)
  * - 'closed': Block all requests (recommended for strict security)
  */
-export type FailStrategy = "open" | "closed";
+export type FailStrategy = 'open' | 'closed';
 
 /**
  * Logger interface for optional logging
@@ -59,9 +59,9 @@ export interface RateLimitResult {
  */
 export interface RateLimiterConfig {
   /**
-   * Redis client instance (must be connected)
+   * IORedis client instance (auto-connects, no need to call connect())
    */
-  redis: RedisClientType;
+  redis: Redis;
 
   /**
    * Maximum number of requests allowed in the time window

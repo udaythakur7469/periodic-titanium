@@ -1,12 +1,12 @@
-import { RedisClientType } from "redis";
-import { RateLimiterConfig, RateLimitResult, Logger, Algorithm } from "./types";
+import Redis from 'ioredis';
+import { RateLimiterConfig, RateLimitResult, Logger, Algorithm } from './types';
 
 /**
  * Core rate limiter implementation
- * Framework-agnostic, pure Redis-based rate limiting
+ * Framework-agnostic, pure Redis-based rate limiting using IORedis
  */
 export class RateLimiter {
-  private redis: RedisClientType;
+  private redis: Redis;
   private requestLimit: number;
   private window: number;
   private keyPrefix: string;
@@ -20,7 +20,7 @@ export class RateLimiter {
     this.requestLimit = config.limit;
     this.window = config.window;
     this.keyPrefix = config.keyPrefix;
-    this.algorithm = config.algorithm || "fixed-window";
+    this.algorithm = config.algorithm || 'fixed-window';
     this.logger = this.createLogger(config.logger);
   }
 
@@ -29,19 +29,19 @@ export class RateLimiter {
    */
   private validateConfig(config: RateLimiterConfig): void {
     if (!config.redis) {
-      throw new Error("Redis client is required");
+      throw new Error('Redis client is required');
     }
 
     if (!config.limit || config.limit <= 0) {
-      throw new Error("Limit must be a positive number");
+      throw new Error('Limit must be a positive number');
     }
 
     if (!config.window || config.window <= 0) {
-      throw new Error("Window must be a positive number (in seconds)");
+      throw new Error('Window must be a positive number (in seconds)');
     }
 
-    if (!config.keyPrefix || config.keyPrefix.trim() === "") {
-      throw new Error("Key prefix is required");
+    if (!config.keyPrefix || config.keyPrefix.trim() === '') {
+      throw new Error('Key prefix is required');
     }
   }
 
@@ -67,7 +67,7 @@ export class RateLimiter {
    * Check if Redis client is available
    */
   private isRedisAvailable(): boolean {
-    return this.redis.isOpen && this.redis.isReady;
+    return this.redis.status === 'ready';
   }
 
   /**
@@ -80,17 +80,17 @@ export class RateLimiter {
    * @throws Error if Redis operations fail (caller should handle)
    */
   async limit(identifier: string): Promise<RateLimitResult> {
-    if (!identifier || identifier.trim() === "") {
-      throw new Error("Identifier cannot be empty");
+    if (!identifier || identifier.trim() === '') {
+      throw new Error('Identifier cannot be empty');
     }
 
     if (!this.isRedisAvailable()) {
-      throw new Error("Redis client is not available");
+      throw new Error('Redis client is not available');
     }
 
     const key = this.buildKey(identifier);
 
-    if (this.algorithm === "fixed-window") {
+    if (this.algorithm === 'fixed-window') {
       return this.fixedWindowLimit(key);
     }
 
@@ -106,10 +106,8 @@ export class RateLimiter {
 
     // Try to initialize the window if it doesn't exist
     // SET key 0 EX window NX - Only set if key doesn't exist
-    const initialized = await this.redis.set(key, "0", {
-      EX: this.window,
-      NX: true,
-    });
+    // IORedis: set(key, value, 'EX', seconds, 'NX')
+    await this.redis.set(key, '0', 'EX', this.window, 'NX');
 
     // Atomically increment the counter
     const currentCount = await this.redis.incr(key);
@@ -123,7 +121,7 @@ export class RateLimiter {
     const allowed = currentCount <= this.requestLimit;
 
     this.logger.info?.(
-      `Rate limit check: identifier=${key}, count=${currentCount}/${this.requestLimit}, allowed=${allowed}`,
+      `Rate limit check: identifier=${key}, count=${currentCount}/${this.requestLimit}, allowed=${allowed}`
     );
 
     return {
@@ -143,12 +141,12 @@ export class RateLimiter {
    * @returns Promise resolving to true if key was deleted, false otherwise
    */
   async reset(identifier: string): Promise<boolean> {
-    if (!identifier || identifier.trim() === "") {
-      throw new Error("Identifier cannot be empty");
+    if (!identifier || identifier.trim() === '') {
+      throw new Error('Identifier cannot be empty');
     }
 
     if (!this.isRedisAvailable()) {
-      throw new Error("Redis client is not available");
+      throw new Error('Redis client is not available');
     }
 
     const key = this.buildKey(identifier);
@@ -166,27 +164,34 @@ export class RateLimiter {
    * @returns Promise resolving to current count and TTL, or null if no limit exists
    */
   async getStatus(
-    identifier: string,
+    identifier: string
   ): Promise<{ current: number; ttl: number } | null> {
-    if (!identifier || identifier.trim() === "") {
-      throw new Error("Identifier cannot be empty");
+    if (!identifier || identifier.trim() === '') {
+      throw new Error('Identifier cannot be empty');
     }
 
     if (!this.isRedisAvailable()) {
-      throw new Error("Redis client is not available");
+      throw new Error('Redis client is not available');
     }
 
     const key = this.buildKey(identifier);
 
     // Use pipeline for atomic read
-    const pipeline = this.redis.multi();
+    // IORedis pipeline returns: [[error, result], [error, result]]
+    const pipeline = this.redis.pipeline();
     pipeline.get(key);
     pipeline.ttl(key);
 
     const results = await pipeline.exec();
 
-    const currentValue = results?.[0] as string | null;
-    const ttl = (results?.[1] as number) || -1;
+    if (!results) {
+      return null;
+    }
+
+    // IORedis pipeline returns array of [error, result] tuples
+    const [getResult, ttlResult] = results;
+    const currentValue = getResult[1] as string | null;
+    const ttl = (ttlResult[1] as number) || -1;
 
     if (!currentValue || ttl < 0) {
       return null;

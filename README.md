@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
 
-Production-ready Redis-backed rate limiting middleware for Express with TypeScript support, fail-safe design, and flexible configuration.
+Production-ready IORedis-backed rate limiting middleware for Express with TypeScript support, fail-safe design, and flexible configuration.
 
 ## 🎯 Why Titanium?
 
@@ -16,11 +16,11 @@ Building a robust API requires protecting your endpoints from abuse, but most ra
 
 **PERIODIC Titanium** provides the perfect middle ground:
 
-✅ **Redis-backed** for distributed rate limiting across multiple instances  
+✅ **IORedis-backed** for distributed rate limiting across multiple instances  
 ✅ **Framework-agnostic core** with clean Express adapter  
 ✅ **TypeScript-first** with complete type safety  
 ✅ **Fail-safe design** that never breaks your application  
-✅ **Zero dependencies** except Express and Redis (peer dependencies)  
+✅ **Zero dependencies** except Express and IORedis (peer dependencies)  
 ✅ **Flexible configuration** for user-based, IP-based, or custom identification  
 ✅ **Production-tested** with atomic Redis operations to prevent race conditions
 
@@ -29,12 +29,12 @@ Building a robust API requires protecting your endpoints from abuse, but most ra
 ## 📦 Installation
 
 ```bash
-npm install @periodic/titanium redis express
+npm install @periodic/titanium ioredis express
 ```
 
 **Peer Dependencies:**
 - `express` ^4.0.0 || ^5.0.0
-- `redis` ^4.0.0
+- `ioredis` ^5.0.0
 
 ---
 
@@ -44,16 +44,13 @@ npm install @periodic/titanium redis express
 
 ```typescript
 import express from 'express';
-import { createClient } from 'redis';
+import Redis from 'ioredis';
 import { rateLimit } from '@periodic/titanium';
 
 const app = express();
 
-// Create and connect Redis client
-const redis = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
-await redis.connect();
+// Create Redis client (auto-connects, no need to call connect())
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
 // Apply rate limiting to all routes
 app.use(rateLimit({
@@ -92,13 +89,203 @@ app.post('/api/resource',
 
 ---
 
+## 🌥️ Using with Redis Cloud
+
+This package works seamlessly with any hosted Redis service including Redis Cloud, AWS ElastiCache, Azure Cache, Upstash, and more.
+
+### Quick Setup
+
+```typescript
+import Redis from 'ioredis';
+import { rateLimit } from '@periodic/titanium';
+
+// Connect to Redis Cloud (or any hosted Redis)
+const redis = new Redis(process.env.REDIS_URL);
+
+app.use(rateLimit({
+  redis,
+  limit: 100,
+  window: 3600,
+  keyPrefix: 'api'
+}));
+```
+
+### Connection URL Format
+
+```
+redis://username:password@hostname:port
+```
+
+**Example:**
+```
+redis://default:abc123@redis-12345.c1.us-east-1-2.ec2.cloud.redislabs.com:12345
+```
+
+### Popular Redis Providers
+
+<details>
+<summary><b>Redis Cloud (Redis Labs)</b></summary>
+
+```typescript
+const redis = new Redis({
+  host: 'redis-xxxxx.c1.us-east-1-2.ec2.cloud.redislabs.com',
+  port: 12345,
+  password: 'your-password',
+  tls: {}, // Required
+});
+```
+
+**Get connection URL:**
+1. Go to [Redis Cloud Dashboard](https://redis.com/cloud/)
+2. Select your database
+3. Copy "Public endpoint"
+
+</details>
+
+<details>
+<summary><b>AWS ElastiCache</b></summary>
+
+```typescript
+const redis = new Redis({
+  host: 'your-cluster.xxxxx.cache.amazonaws.com',
+  port: 6379,
+  password: 'your-auth-token', // Optional
+});
+```
+
+</details>
+
+<details>
+<summary><b>Azure Cache for Redis</b></summary>
+
+```typescript
+const redis = new Redis({
+  host: 'your-cache.redis.cache.windows.net',
+  port: 6380,
+  password: 'your-access-key',
+  tls: {}, // Required
+});
+```
+
+</details>
+
+<details>
+<summary><b>Upstash</b></summary>
+
+```typescript
+const redis = new Redis({
+  host: 'your-region.upstash.io',
+  port: 6379,
+  password: 'your-token',
+  tls: {}, // Required
+});
+```
+
+</details>
+
+### Environment Variables (Recommended)
+
+```bash
+# .env
+REDIS_URL=redis://default:yourpassword@redis-host.cloud.redislabs.com:12345
+```
+
+```typescript
+import 'dotenv/config';
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL);
+```
+
+**See full guide:** [Using with Redis Cloud](./REDIS_CLOUD_USAGE_GUIDE.md)
+
+---
+
+## 🔐 Security Best Practices
+
+- ✅ **Never hardcode credentials** - Use environment variables
+- ✅ **Use TLS/SSL** - Most cloud providers require it
+- ✅ **Add to .gitignore** - Never commit `.env` files
+- ✅ **Rotate credentials** - Change passwords regularly
+- ✅ **Use IP whitelisting** - Restrict access to known IPs
+
+---
+
+## 🚀 Production-Ready Example
+
+```typescript
+import express from 'express';
+import Redis from 'ioredis';
+import { rateLimit } from '@periodic/titanium';
+import 'dotenv/config';
+
+const app = express();
+
+// Create Redis client with error handling
+const redis = new Redis(process.env.REDIS_URL, {
+  retryStrategy: (times) => Math.min(times * 50, 2000),
+  maxRetriesPerRequest: 3,
+});
+
+// Event handlers
+redis.on('ready', () => console.log('✅ Redis connected'));
+redis.on('error', (err) => console.error('❌ Redis error:', err.message));
+
+// Apply rate limiting
+app.use('/api', rateLimit({
+  redis,
+  limit: 1000,
+  window: 3600,
+  keyPrefix: 'api',
+  failStrategy: 'open', // Allow requests if Redis is down
+}));
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  await redis.quit();
+  process.exit(0);
+});
+
+app.listen(3000);
+```
+
+---
+
+## 🐛 Troubleshooting Redis Cloud
+
+### Connection Refused / Timeout
+
+1. Check Redis Cloud dashboard - is database running?
+2. Verify connection URL format
+3. Check IP whitelist in Redis Cloud settings
+4. Ensure public endpoint is enabled
+
+### Authentication Error
+
+```typescript
+// Make sure URL includes username and password
+redis://default:yourpassword@host:port
+```
+
+### TLS/SSL Required
+
+```typescript
+const redis = new Redis(process.env.REDIS_URL, {
+  tls: {}, // Enable TLS
+});
+```
+
+**Full troubleshooting guide:** [Redis Cloud Usage Guide](./REDIS_CLOUD_USAGE_GUIDE.md)
+
+---
+
 ## 🎛️ Configuration Options
 
 ### Core Options
 
 | Option | Type | Required | Default | Description |
 |--------|------|----------|---------|-------------|
-| `redis` | `RedisClientType` | ✅ Yes | - | Connected Redis client instance |
+| `redis` | `Redis` | ✅ Yes | - | IORedis client instance |
 | `limit` | `number` | ✅ Yes | - | Maximum requests allowed in time window |
 | `window` | `number` | ✅ Yes | - | Time window in seconds |
 | `keyPrefix` | `string` | ✅ Yes | - | Redis key prefix (identifies rate limit type) |
@@ -435,22 +622,20 @@ Rate limiter error: Error: Connection refused
 ### Redis Configuration
 
 ```typescript
-import { createClient } from 'redis';
+import Redis from 'ioredis';
 
-const redis = createClient({
-  url: process.env.REDIS_URL,
-  socket: {
-    reconnectStrategy: (retries) => {
-      if (retries > 10) return new Error('Max retries reached');
-      return Math.min(retries * 100, 3000); // Exponential backoff
-    }
-  }
+const redis = new Redis(process.env.REDIS_URL, {
+  retryStrategy: (times) => {
+    if (times > 10) return null;
+    return Math.min(times * 100, 3000); // Exponential backoff
+  },
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: true,
 });
 
 redis.on('error', (err) => console.error('Redis error:', err));
 redis.on('reconnecting', () => console.log('Redis reconnecting...'));
-
-await redis.connect();
+redis.on('ready', () => console.log('Redis connected'));
 ```
 
 ### Rate Limit Guidelines
@@ -469,11 +654,11 @@ await redis.connect();
 # .env
 REDIS_URL=redis://localhost:6379
 
-# Production
-REDIS_URL=redis://username:password@redis-host:6379
+# Production (Redis Cloud)
+REDIS_URL=redis://default:password@redis-host.cloud.redislabs.com:12345
 
-# Redis Cluster
-REDIS_URL=redis://redis-cluster:6379
+# AWS ElastiCache
+REDIS_URL=redis://your-cluster.cache.amazonaws.com:6379
 ```
 
 ---

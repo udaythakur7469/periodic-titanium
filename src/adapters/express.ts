@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from "express";
-import { RateLimiter } from "../core/limiter";
-import { ExpressRateLimitOptions, RateLimitInfo, Logger } from "../core/types";
-import { getDefaultIdentifier } from "../utils/ip";
+import { Request, Response, NextFunction } from 'express';
+import { RateLimiter } from '../core/limiter';
+import { ExpressRateLimitOptions, RateLimitInfo, Logger } from '../core/types';
+import { getDefaultIdentifier } from '../utils/ip';
 
 /**
  * Express rate limiting middleware factory
@@ -49,19 +49,19 @@ import { getDefaultIdentifier } from "../utils/ip";
 export function rateLimit(options: ExpressRateLimitOptions) {
   // Validate required options
   if (!options.redis) {
-    throw new Error("Redis client is required");
+    throw new Error('Redis client is required');
   }
 
   if (!options.limit || options.limit <= 0) {
-    throw new Error("Limit must be a positive number");
+    throw new Error('Limit must be a positive number');
   }
 
   if (!options.window || options.window <= 0) {
-    throw new Error("Window must be a positive number");
+    throw new Error('Window must be a positive number');
   }
 
-  if (!options.keyPrefix || options.keyPrefix.trim() === "") {
-    throw new Error("Key prefix is required");
+  if (!options.keyPrefix || options.keyPrefix.trim() === '') {
+    throw new Error('Key prefix is required');
   }
 
   // Extract options with defaults
@@ -70,11 +70,11 @@ export function rateLimit(options: ExpressRateLimitOptions) {
     limit,
     window,
     keyPrefix,
-    algorithm = "fixed-window",
+    algorithm = 'fixed-window',
     identifier,
-    message = "Too many requests. Please try again later.",
+    message = 'Too many requests. Please try again later.',
     skip,
-    failStrategy = "open",
+    failStrategy = 'open',
     standardHeaders = true,
     logger,
   } = options;
@@ -100,7 +100,7 @@ export function rateLimit(options: ExpressRateLimitOptions) {
   return async (
     req: Request,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
   ): Promise<void> => {
     try {
       // Check if rate limiting should be skipped
@@ -123,21 +123,21 @@ export function rateLimit(options: ExpressRateLimitOptions) {
         result = await limiter.limit(clientIdentifier);
       } catch (error) {
         // Redis error - apply fail strategy
-        log.error?.("Rate limiter error:", error);
+        log.error?.('Rate limiter error:', error);
 
-        if (failStrategy === "closed") {
+        if (failStrategy === 'closed') {
           log.warn?.(
-            "Redis unavailable with fail-closed strategy - blocking request",
+            'Redis unavailable with fail-closed strategy - blocking request'
           );
           res.status(503).json({
-            error: "Service temporarily unavailable. Please try again later.",
+            error: 'Service temporarily unavailable. Please try again later.',
           });
           return;
         }
 
         // Fail-open strategy
         log.warn?.(
-          "Redis unavailable with fail-open strategy - allowing request",
+          'Redis unavailable with fail-open strategy - allowing request'
         );
         return next();
       }
@@ -155,7 +155,7 @@ export function rateLimit(options: ExpressRateLimitOptions) {
       // Check if request is allowed
       if (!result.allowed) {
         log.warn?.(
-          `Rate limit exceeded for identifier: ${clientIdentifier} (${keyPrefix})`,
+          `Rate limit exceeded for identifier: ${clientIdentifier} (${keyPrefix})`
         );
 
         res.status(429).json({
@@ -171,24 +171,24 @@ export function rateLimit(options: ExpressRateLimitOptions) {
       // Log warning when approaching limit (80% threshold)
       if (result.remaining < result.limit * 0.2) {
         log.info?.(
-          `Rate limit warning for identifier: ${clientIdentifier} (${keyPrefix}) - ${result.remaining} remaining`,
+          `Rate limit warning for identifier: ${clientIdentifier} (${keyPrefix}) - ${result.remaining} remaining`
         );
       }
 
       next();
     } catch (error) {
       // Unexpected error - apply fail strategy
-      log.error?.("Unexpected rate limit middleware error:", error);
+      log.error?.('Unexpected rate limit middleware error:', error);
 
-      if (failStrategy === "closed") {
+      if (failStrategy === 'closed') {
         res.status(503).json({
-          error: "Service temporarily unavailable. Please try again later.",
+          error: 'Service temporarily unavailable. Please try again later.',
         });
         return;
       }
 
       // Fail-open
-      log.warn?.("Allowing request due to unexpected error (fail-open mode)");
+      log.warn?.('Allowing request due to unexpected error (fail-open mode)');
       next();
     }
   };
@@ -198,12 +198,12 @@ export function rateLimit(options: ExpressRateLimitOptions) {
  * Set standard rate limit headers on response
  */
 function setRateLimitHeaders(res: Response, info: RateLimitInfo): void {
-  res.setHeader("X-RateLimit-Limit", info.limit.toString());
-  res.setHeader("X-RateLimit-Remaining", info.remaining.toString());
-  res.setHeader("X-RateLimit-Reset", info.reset.toString());
+  res.setHeader('X-RateLimit-Limit', info.limit.toString());
+  res.setHeader('X-RateLimit-Remaining', info.remaining.toString());
+  res.setHeader('X-RateLimit-Reset', info.reset.toString());
 
   if (info.retryAfter !== undefined) {
-    res.setHeader("Retry-After", info.retryAfter.toString());
+    res.setHeader('Retry-After', info.retryAfter.toString());
   }
 }
 
@@ -232,8 +232,8 @@ function setRateLimitHeaders(res: Response, info: RateLimitInfo): void {
 export function createRateLimiter(
   options: Omit<
     ExpressRateLimitOptions,
-    "identifier" | "skip" | "message" | "failStrategy" | "standardHeaders"
-  >,
+    'identifier' | 'skip' | 'message' | 'failStrategy' | 'standardHeaders'
+  >
 ): RateLimiter {
   return new RateLimiter(options);
 }
