@@ -44,3 +44,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Environment variable support for Redis connection URLs
 
 [1.0.2]: https://github.com/udaythakur7469/periodic-titanium/releases/tag/v1.0.2
+
++ ## [1.0.3] - 2026-04-04
++ 
++ ### Fixed
++ - **TypeScript compatibility:** Fixed `rateLimit()` return type to explicitly return `RequestHandler` from Express
++ - Resolved TypeScript error: "Type 'Promise<void>' is not assignable to type 'void | Promise<void>'"
++ - Updated internal middleware function signature to properly conform to Express `RequestHandler` type
++ - Fixed `return next()` statements to separate `next()` call and `return` on different lines for proper type conformance
++ - All middleware functions now have explicit type annotations for better IDE support and type safety
++ 
++ ### Technical Details
++ - Added `RequestHandler` import from 'express' package
++ - Changed `rateLimit()` function signature to include explicit `: RequestHandler` return type
++ - Updated internal middleware to avoid returning values from `next()` calls
++ - Ensured all error responses use separate `res.json()` and `return` statements
++ 
++ [1.0.3]: https://github.com/udaythakur7469/periodic-titanium/releases/tag/v1.0.3
