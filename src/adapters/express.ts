@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { RateLimiter } from '../core/limiter';
 import { ExpressRateLimitOptions, RateLimitInfo, Logger } from '../core/types';
 import { getDefaultIdentifier } from '../utils/ip';
@@ -46,7 +46,7 @@ import { getDefaultIdentifier } from '../utils/ip';
  * );
  * ```
  */
-export function rateLimit(options: ExpressRateLimitOptions) {
+export function rateLimit(options: ExpressRateLimitOptions): RequestHandler {
   // Validate required options
   if (!options.redis) {
     throw new Error('Redis client is required');
@@ -105,7 +105,8 @@ export function rateLimit(options: ExpressRateLimitOptions) {
     try {
       // Check if rate limiting should be skipped
       if (skip && skip(req)) {
-        return next();
+        next();
+        return;
       }
 
       // Extract identifier
@@ -139,7 +140,8 @@ export function rateLimit(options: ExpressRateLimitOptions) {
         log.warn?.(
           'Redis unavailable with fail-open strategy - allowing request'
         );
-        return next();
+        next();
+        return;
       }
 
       // Set standard headers if enabled
