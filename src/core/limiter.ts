@@ -5,6 +5,17 @@ import { RateLimiterConfig, RateLimitResult, Logger, Algorithm } from './types';
  * Core rate limiter implementation
  * Framework-agnostic, pure Redis-based rate limiting using IORedis
  */
+
+const FIXED_WINDOW_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+local pttl = redis.call('PTTL', KEYS[1])
+if count == 1 or pttl == -1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  pttl = tonumber(ARGV[1])
+end
+return {count, pttl}
+`;
+
 export class RateLimiter {
   private redis: Redis;
   private requestLimit: number;
@@ -104,19 +115,18 @@ export class RateLimiter {
   private async fixedWindowLimit(key: string): Promise<RateLimitResult> {
     const now = Date.now();
 
-    // Try to initialize the window if it doesn't exist
-    // SET key 0 EX window NX - Only set if key doesn't exist
-    // IORedis: set(key, value, 'EX', seconds, 'NX')
-    await this.redis.set(key, '0', 'EX', this.window, 'NX');
+    // Single atomic round trip: INCR + PEXPIRE-if-needed happen inside
+    // one Lua script on the Redis server, so there is no window between
+    // commands where a partial failure can leave a TTL-less key.
+    const [currentCount, pttl] = (await this.redis.eval(
+      FIXED_WINDOW_SCRIPT,
+      1,
+      key,
+      this.window * 1000
+    )) as [number, number];
 
-    // Atomically increment the counter
-    const currentCount = await this.redis.incr(key);
-
-    // Get TTL to calculate reset time
-    const ttl = await this.redis.ttl(key);
-
-    // Calculate reset timestamp
-    const resetTime = ttl > 0 ? now + ttl * 1000 : now + this.window * 1000;
+    const ttlSeconds = Math.ceil(pttl / 1000);
+    const resetTime = now + pttl;
     const remaining = Math.max(0, this.requestLimit - currentCount);
     const allowed = currentCount <= this.requestLimit;
 
@@ -129,7 +139,7 @@ export class RateLimiter {
       limit: this.requestLimit,
       remaining,
       reset: Math.ceil(resetTime / 1000),
-      ttl: ttl > 0 ? ttl : this.window,
+      ttl: ttlSeconds > 0 ? ttlSeconds : this.window,
     };
   }
 
@@ -191,9 +201,25 @@ export class RateLimiter {
     // IORedis pipeline returns array of [error, result] tuples
     const [getResult, ttlResult] = results;
     const currentValue = getResult[1] as string | null;
-    const ttl = (ttlResult[1] as number) || -1;
+    const ttl = (ttlResult[1] as number) ?? -2;
 
-    if (!currentValue || ttl < 0) {
+    if (!currentValue) {
+      return null;
+    }
+
+    // Self-heal: a key that exists but has no TTL (ttl === -1) is the
+    // corrupted state this whole fix is about. Force an expiry on it here
+    // instead of quietly reporting "no limit" and leaving it stuck forever.
+    if (ttl === -1) {
+      await this.redis.expire(key, this.window);
+      this.logger.warn?.(
+        `Self-healed a TTL-less rate limit key: ${key} (forced expire in ${this.window}s)`
+      );
+      const current = parseInt(currentValue, 10);
+      return { current, ttl: this.window };
+    }
+
+    if (ttl < 0) {
       return null;
     }
 
